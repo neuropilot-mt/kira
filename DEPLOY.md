@@ -26,24 +26,19 @@ npm run build
 php artisan optimize
 ```
 
-`npm run build` собирает CSS публичного сайта в `public/styles.css`. `php artisan optimize` кэширует конфигурацию внутрь сборки, поэтому база, бакет и переменные должны быть подключены до этого деплоя.
+`npm run build` собирает CSS публичного сайта в `public/styles.css`. `php artisan optimize` кэширует конфигурацию внутрь сборки, поэтому бакет и переменные из разделов ниже должны быть подключены до этого деплоя.
 
-Deploy command:
+Deploy command оставьте пустым. Миграции и сиды не нужны: отдельной базы нет.
 
-```sh
-php artisan migrate --force
-php artisan db:seed --force
-```
+Не добавляйте `php artisan migrate`, `php artisan db:seed`, `php artisan storage:link` и `php artisan optimize:clear`.
 
-Сид при каждом деплое обновляет администратора из `ADMIN_EMAIL` и `ADMIN_PASSWORD`.
+## 4. База не нужна
 
-Не добавляйте `php artisan storage:link`, `php artisan optimize:clear`, `queue:restart` и `horizon:terminate`. Ссылку на `storage` Cloud не сохраняет, очереди он перезапускает сам.
+Каталог фото — файл `photos/catalog.json` в том же бакете, куда складываются оригиналы и превью. Вход в админку сверяется с `ADMIN_EMAIL` и `ADMIN_PASSWORD`, сессия хранится в зашифрованной куке. MySQL, Postgres и SQLite на проде не подключайте.
 
-## 4. База
+Если база уже прикреплена, отсоедините её на схеме окружения и удалите переменные `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`. Иначе Cloud продолжит подставлять её адрес. Затем задеплойте ещё раз.
 
-На схеме окружения нажмите **Add database** и создайте MySQL или Serverless Postgres в том же регионе, что и приложение. SQLite на Cloud не живёт: файловая система эфемерная.
-
-После подключения Cloud сам записывает `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` и остальные поля. Сессии и кэш уже смотрят в базу (`SESSION_DRIVER=database`, `CACHE_STORE=database`), отдельно их переключать не нужно.
+Образец переменных лежит в `.env.production.example`.
 
 ## 5. Хранилище фото
 
@@ -70,12 +65,15 @@ php artisan db:seed --force
 
 ## 7. Первый запуск
 
-Откройте `https://ваш-домен/admin`, войдите почтой и паролем из переменных. Загрузите JPEG, PNG, WebP или GIF до 20 МБ. Имя файла `hero` или галочка «Портрет на главной» ставит кадр в большой портрет. Остальные фото идут в «Избранные работы». На сайте показывается уменьшенная копия, клик открывает загруженный оригинал.
+Откройте `https://ваш-домен/admin`, войдите почтой и паролем из переменных. Загрузите JPEG, PNG, WebP или GIF до 40 МБ. Имя файла `hero` или галочка «Портрет на главной» ставит кадр в большой портрет. Остальные фото идут в «Избранные работы». На сайте показывается уменьшенная копия, клик открывает загруженный оригинал.
 
 HEIC с телефона админка не принимает: на сервере нет macOS-утилиты, которая конвертировала его локально. Перед загрузкой сохраните кадр как JPEG.
 
-Камера часто снимает JPEG больше 2 МБ, а PHP по умолчанию отклоняет такие файлы ещё до Laravel. В `public/.user.ini` лимит поднят до 40 МБ. Если после деплоя большая фотография снова не загружается, в настройках PHP-окружения поставьте `upload_max_filesize=40M` и `post_max_size=48M`. Локальный `php artisan serve` этот файл не читает: запускайте его так:
+Камера часто снимает JPEG больше 2 МБ, а PHP по умолчанию отклоняет такие файлы ещё до Laravel. В `public/.user.ini` лимит поднят до 40 МБ. Если после деплоя большая фотография снова не загружается, в настройках PHP-окружения поставьте `upload_max_filesize=40M` и `post_max_size=48M`. Локальный `php artisan serve` запускает отдельный процесс и не переносит эти лимиты. Для локальной проверки сервер нужно стартовать так, из корня проекта:
 
 ```sh
-php -d upload_max_filesize=40M -d post_max_size=48M -d memory_limit=512M artisan serve
+cd public
+php -d upload_max_filesize=40M -d post_max_size=48M -d memory_limit=512M \
+  -S 127.0.0.1:4317 \
+  ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php
 ```

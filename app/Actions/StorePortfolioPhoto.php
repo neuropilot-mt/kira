@@ -2,10 +2,10 @@
 
 namespace App\Actions;
 
-use App\Models\Photo;
+use App\Photos\PhotoCatalog;
+use App\Photos\PortfolioPhoto;
 use App\Support\ImagePreview;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -13,7 +13,9 @@ use RuntimeException;
 
 class StorePortfolioPhoto
 {
-    public function handle(UploadedFile $file, bool $asHero): Photo
+    public function __construct(private PhotoCatalog $catalog) {}
+
+    public function handle(UploadedFile $file, bool $asHero): PortfolioPhoto
     {
         $stem = Str::of($file->getClientOriginalName())
             ->beforeLast('.')
@@ -41,20 +43,18 @@ class StorePortfolioPhoto
             ]);
         }
 
-        try {
-            return DB::transaction(function () use ($asHero, $originalFilename, $previewFilename, $stem) {
-                if ($asHero) {
-                    Photo::query()->where('is_hero', true)->update(['is_hero' => false]);
-                }
+        $positions = $this->catalog->all()->map(fn (PortfolioPhoto $photo): int => $photo->position);
+        $photo = new PortfolioPhoto(
+            $name,
+            $originalFilename,
+            $previewFilename,
+            $asHero ? 'Портрет Киры Новиковой' : ($stem !== '' ? $stem : 'Фото'),
+            $asHero,
+            ($positions->max() ?? 0) + 1,
+        );
 
-                return Photo::query()->create([
-                    'original_filename' => $originalFilename,
-                    'preview_filename' => $previewFilename,
-                    'alt' => $asHero ? 'Портрет Киры Новиковой' : ($stem !== '' ? $stem : 'Фото'),
-                    'is_hero' => $asHero,
-                    'position' => ((int) Photo::query()->max('position')) + 1,
-                ]);
-            });
+        try {
+            $this->catalog->add($photo);
         } catch (\Throwable $exception) {
             $disk->delete([
                 'photos/originals/'.$originalFilename,
@@ -63,5 +63,7 @@ class StorePortfolioPhoto
 
             throw $exception;
         }
+
+        return $photo;
     }
 }

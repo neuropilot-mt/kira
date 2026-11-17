@@ -17,7 +17,7 @@
                 <strong>Кира Новикова</strong>
                 <span>Админка</span>
             </a>
-            @auth
+            @if (session('admin'))
                 <nav>
                     <a href="{{ url('/') }}">Открыть сайт</a>
                     <form method="POST" action="{{ route('admin.logout') }}">
@@ -25,7 +25,7 @@
                         <button class="ghost" type="submit">Выйти</button>
                     </form>
                 </nav>
-            @endauth
+            @endif
         </header>
 
         <main class="sheet">

@@ -37,26 +37,26 @@
                     <div>
                         <h2>
                             {{ $photo->alt }}
-                            @if ($photo->is_hero)
+                            @if ($photo->isHero)
                                 <span class="mark">Портрет</span>
                             @endif
                         </h2>
                         <div class="actions">
-                            @unless ($photo->is_hero)
-                                <form method="POST" action="{{ route('admin.photos.hero', $photo) }}">
+                            @unless ($photo->isHero)
+                                <form method="POST" action="{{ route('admin.photos.hero', $photo->id) }}">
                                     @csrf
                                     <button class="line" type="submit">Сделать портретом</button>
                                 </form>
                             @endunless
-                            <form method="POST" action="{{ route('admin.photos.move', [$photo, 'up']) }}">
+                            <form method="POST" action="{{ route('admin.photos.move', [$photo->id, 'up']) }}">
                                 @csrf
                                 <button class="line" type="submit">Выше</button>
                             </form>
-                            <form method="POST" action="{{ route('admin.photos.move', [$photo, 'down']) }}">
+                            <form method="POST" action="{{ route('admin.photos.move', [$photo->id, 'down']) }}">
                                 @csrf
                                 <button class="line" type="submit">Ниже</button>
                             </form>
-                            <form method="POST" action="{{ route('admin.photos.destroy', $photo) }}" onsubmit="return confirm('Удалить это фото?')">
+                            <form method="POST" action="{{ route('admin.photos.destroy', $photo->id) }}" onsubmit="return confirm('Удалить это фото?')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="line" type="submit">Удалить</button>

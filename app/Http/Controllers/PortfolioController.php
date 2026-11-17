@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Photo;
+use App\Photos\PhotoCatalog;
+use App\Photos\PortfolioPhoto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PortfolioController extends Controller
 {
+    public function __construct(private PhotoCatalog $catalog) {}
+
     public function home(): Response
     {
         return response(file_get_contents(resource_path('site/index.html')), 200, [
@@ -19,16 +22,16 @@ class PortfolioController extends Controller
 
     public function manifest(): JsonResponse
     {
-        $photos = Photo::query()->orderBy('position')->orderBy('id')->get();
-        $hero = $photos->firstWhere('is_hero', true);
+        $photos = $this->catalog->all();
+        $hero = $photos->first(fn (PortfolioPhoto $photo): bool => $photo->isHero);
         $works = $photos
-            ->reject(fn (Photo $photo): bool => $hero instanceof Photo && $photo->is($hero))
+            ->reject(fn (PortfolioPhoto $photo): bool => $hero instanceof PortfolioPhoto && $photo->id === $hero->id)
             ->values();
 
         return response()->json([
-            'version' => $photos->max('updated_at')?->getTimestamp() ?? 0,
-            'hero' => $hero instanceof Photo ? $this->payload($hero) : null,
-            'works' => $works->map(fn (Photo $photo): array => $this->payload($photo))->all(),
+            'version' => $this->catalog->updatedAt(),
+            'hero' => $hero instanceof PortfolioPhoto ? $this->payload($hero) : null,
+            'works' => $works->map(fn (PortfolioPhoto $photo): array => $this->payload($photo))->all(),
         ])->header('Cache-Control', 'no-store');
     }
 
@@ -47,7 +50,7 @@ class PortfolioController extends Controller
     /**
      * @return array{preview: string, original: string, alt: string}
      */
-    private function payload(Photo $photo): array
+    private function payload(PortfolioPhoto $photo): array
     {
         return [
             'preview' => $photo->previewPath(),
